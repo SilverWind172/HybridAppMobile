@@ -1,20 +1,22 @@
-<ion-header [translucent]="true">
+<ion-header>
   <ion-toolbar>
-    <ion-title>
-      Blank
-    </ion-title>
+    <ion-title>QR Code Scanner</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
-
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
+<ion-content>
+  <!-- Hiển thị kết quả quét mã -->
+  <div class="scan-result">
+    <ion-label>
+      <h2>Scanned Text:</h2>
+      <p>{{ scannedText }}</p>
+    </ion-label>
   </div>
+
+  <!-- Nút quét mã vạch -->
+  <ion-button expand="full" (click)="scanBarcode()">
+    Scan Barcode
+  </ion-button>
+  <ion-button (click)="takePhoto()">Chụp ảnh</ion-button>
+
 </ion-content>
