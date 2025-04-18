@@ -25,3 +25,53 @@
 #container a {
   text-decoration: none;
 }
+
+
+.results-container {
+  padding: 16px;
+
+  ion-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.scan-section {
+  margin-bottom: 20px;
+
+  ion-chip {
+    margin-top: 8px;
+  }
+}
+
+.product-section {
+  margin-top: 20px;
+
+  ion-item {
+    --padding-start: 0;
+    --inner-padding-end: 0;
+  }
+
+  ion-avatar {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.empty-state, .loading-indicator {
+  height: 50vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: var(--ion-color-medium);
+}
+
+.action-buttons {
+  padding: 16px;
+
+  ion-button {
+    margin-bottom: 12px;
+  }
+}
