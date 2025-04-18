@@ -1,22 +1,84 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>QR Code Scanner</ion-title>
+    <ion-title>QR/Barcode Scanner</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-  <!-- Hiển thị kết quả quét mã -->
-  <div class="scan-result">
-    <ion-label>
-      <h2>Scanned Text:</h2>
-      <p>{{ scannedText }}</p>
-    </ion-label>
+<ion-content [fullscreen]="true">
+  <!-- Scan Results Section -->
+  <div class="results-container" *ngIf="scannedText || productInfo">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="barcode-outline"></ion-icon>
+          Scan Result
+        </ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <!-- Scanned Code -->
+        <div class="scan-section">
+          <ion-text color="primary">
+            <h2>Scanned Code:</h2>
+          </ion-text>
+          <ion-chip>
+            <ion-label>{{ scannedText || 'No code scanned' }}</ion-label>
+          </ion-chip>
+        </div>
+
+        <!-- Product Info -->
+        <div class="product-section" *ngIf="productInfo">
+          <ion-text color="primary">
+            <h2>{{ productInfo.title }}</h2>
+          </ion-text>
+
+          <!-- Price Comparison -->
+          <ion-list lines="none">
+            <ion-item *ngFor="let offer of productInfo.offers | sortByPrice">
+              <ion-avatar slot="start">
+                <!--suppress AngularNgOptimizedImage -->
+                <img
+                  [src]="'assets/stores/' + offer.merchant + '.png'"
+                  [alt]="offer.merchant + ' logo'"
+                  width="40"
+                  height="40"
+                />
+              </ion-avatar>
+              <ion-label>
+                {{ offer.merchant }}
+              </ion-label>
+              <ion-note slot="end" color="success">
+                {{ offer.price | currency }}
+              </ion-note>
+            </ion-item>
+          </ion-list>
+        </div>
+      </ion-card-content>
+    </ion-card>
   </div>
 
-  <!-- Nút quét mã vạch -->
-  <ion-button expand="full" (click)="scanBarcode()">
-    Scan Barcode
-  </ion-button>
-  <ion-button (click)="takePhoto()">Chụp ảnh</ion-button>
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!scannedText && !isLoading">
+    <ion-icon name="scan-outline" size="large"></ion-icon>
+    <p>No scan results yet</p>
+  </div>
 
+  <!-- Loading Indicator -->
+  <div class="loading-indicator" *ngIf="isLoading">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Processing scan...</p>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    <ion-button expand="block" (click)="scanBarcode()" shape="round">
+      <ion-icon slot="start" name="camera"></ion-icon>
+      Scan Barcode
+    </ion-button>
+
+    <ion-button expand="block" fill="outline" (click)="clearScan()" *ngIf="scannedText" shape="round">
+      <ion-icon slot="start" name="trash"></ion-icon>
+      Clear Results
+    </ion-button>
+  </div>
 </ion-content>
