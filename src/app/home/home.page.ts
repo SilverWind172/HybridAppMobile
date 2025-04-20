@@ -2,12 +2,14 @@ import {Component} from '@angular/core';
 import {IonicModule} from "@ionic/angular";
 import {ApiService} from "../services/api.service";
 import {ProductService} from "../services/product.service";
-import {BarcodeScanner} from '@capacitor-mlkit/barcode-scanning';
-import {BarcodeFormat} from '@capacitor-mlkit/barcode-scanning';
+import {BarcodeScanner, BarcodeFormat} from '@capacitor-mlkit/barcode-scanning';
 import {AlertController} from '@ionic/angular';
 import {CurrencyPipe, NgForOf, NgIf} from "@angular/common";
-import {PipeTransform} from "@angular/core";
-import {Pipe} from "@angular/core";
+import {PipeTransform, Pipe} from "@angular/core";
+import {Product} from "../model/Product.model";
+import {ProductImage} from "../model/ProductImage.model";
+import {ProductOffer} from "../model/ProductOffer.model";
+import {SplashScreen} from '@capacitor/splash-screen';
 
 @Pipe({name: 'sortByPrice'})
 export class SortByPricePipe implements PipeTransform {
@@ -20,19 +22,25 @@ export class SortByPricePipe implements PipeTransform {
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
+  standalone: true,
   imports: [
     IonicModule,
     CurrencyPipe,
     NgForOf,
-    SortByPricePipe,
-    NgIf
-  ],
-  standalone: true
+    NgIf,
+    SortByPricePipe
+  ]
 })
 export class HomePage {
   scannedText: string = '';
-  productInfo: any;
   isLoading: boolean = false;
+  isScanning: boolean = false;
+
+  productInfo: {
+    product: Product;
+    images: ProductImage[];
+    offers: ProductOffer[];
+  } | null = null;
 
   constructor(
     private apiService: ApiService,
@@ -41,25 +49,40 @@ export class HomePage {
   ) {
   }
 
+
+  ionViewDidEnter() {
+    setTimeout(() => {
+      SplashScreen.hide();
+    }, 1000); // trễ 1s đảm bảo không đụng animation
+  }
+
+
   async scanBarcode() {
+    if (this.isScanning) return;
+    this.isScanning = true;
     try {
       this.isLoading = true;
 
-      // Check if scanning is supported
       const {supported} = await BarcodeScanner.isSupported();
       if (!supported) {
         await this.showAlert('Error', 'Barcode scanning not supported on this device');
         return;
       }
 
-      // Request permissions
-      const {camera} = await BarcodeScanner.requestPermissions();
-      if (camera !== 'granted') {
-        await this.showAlert('Permission Required', 'Please grant camera permission to scan barcodes');
-        return;
+      const check = await BarcodeScanner.checkPermissions();
+      if (check.camera !== 'granted') {
+        const {camera} = await BarcodeScanner.requestPermissions();
+        if (camera !== 'granted') {
+          await this.showAlert('Permission Required', 'Please grant camera permission');
+          return;
+        }
       }
 
-      // Start scanning
+      // Fix quan trọng: delay nhỏ để tránh lỗi surface
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await new Promise(resolve => setTimeout(resolve, 500)); // delay 0.5s
+
       const result = await BarcodeScanner.scan({
         formats: [BarcodeFormat.Ean13, BarcodeFormat.Ean8, BarcodeFormat.UpcA, BarcodeFormat.UpcE],
       });
@@ -71,11 +94,13 @@ export class HomePage {
       } else {
         this.scannedText = 'No barcode found';
       }
+
     } catch (error) {
       console.error('Error scanning barcode:', error);
-      await this.showAlert('Error', 'Failed to scan barcode. Please try again.');
+      await this.showAlert('Error', 'Failed to scan barcode.');
     } finally {
       this.isLoading = false;
+      this.isScanning = false;
     }
   }
 
@@ -83,53 +108,76 @@ export class HomePage {
     try {
       this.isLoading = true;
 
-      // Check if the product exists in a local database first
       try {
         const localProduct = await this.productService.getProductByBarcode(barcode);
         this.productInfo = {
-          title: localProduct.name,
-          offers: localProduct.priceList.map((price: any) => ({
-            merchant: price.store,
-            price: price.price
-          }))
+          product: localProduct.product,
+          images: localProduct.images,
+          offers: localProduct.offers
         };
         await this.showAlert('Local Data', 'Product loaded from local database');
         return;
-      } catch (localError) {
-        console.log('Product not found locally, fetching from API');
+      } catch {
+        console.log('Product not found locally, checking API...');
       }
 
-      // Fetch from API if not found locally
       this.apiService.getProductByBarcodeUsingAPI(barcode).subscribe({
         next: async (response) => {
-          if (response.items && response.items.length > 0) {
-            const product = response.items[0];
-            this.productInfo = product;
+          if (response.items?.length > 0) {
+            const item = response.items[0];
+            const productData: Product = {
+              upc: item.upc,
+              code: item.upc,
+              title: item.title,
+              description: item.description,
+              brand: item.brand,
+              model: item.model,
+              category: item.category,
+              lowest_price: Math.min(...item.offers.map((o: { price: number }) => o.price)),
+              highest_price: Math.max(...item.offers.map((o: { price: number }) => o.price)),
+            };
 
-            // Save to SQLite
-            if (!product.offers) return;
-            const prices = product.offers.map((offer: any) => ({
-              store: offer.merchant,
-              price: offer.price
-            }));
-            /*
+            const images: ProductImage[] = item.images?.map((url: string) => ({
+              code: item.upc,
+              image_url: url
+            })) || [];
 
-             */
-            await this.productService.addProduct(product.upc, product.title, prices);
+            const offers: ProductOffer[] = item.offers?.map((o: any) => ({
+              code: item.upc,
+              merchant: o.merchant,
+              domain: o.domain,
+              offer_title: o.title,
+              currency: o.currency,
+              list_price: o.list_price,
+              price: o.price,
+              shipping: o.shipping,
+              condition: o.condition,
+              availability: o.availability,
+              link: o.link,
+              updated_time: Date.now(),
+            })) || [];
 
-            await this.showAlert('Success', 'Product saved to local database');
+            this.productInfo = {
+              product: productData,
+              images,
+              offers
+            };
+
+            await this.productService.addFullProduct(productData, images, offers);
+            await this.showAlert('Success', 'Product saved locally');
           } else {
-            await this.showAlert('Not Found', 'Product not found in database');
+            await this.showAlert('Not Found', 'Product not found in API');
           }
         },
-        error: (err) => {
+        error: async (err) => {
           console.error('API Error:', err);
-          this.showAlert('Error', 'Failed to fetch product details');
+          await this.showAlert('Error', 'Failed to fetch product details');
         }
       });
+
     } catch (error) {
-      console.error('Error handling barcode:', error);
-      await this.showAlert('Error', 'Failed to process barcode');
+      console.error('Handle barcode error:', error);
+      await this.showAlert('Error', 'Error processing barcode');
     } finally {
       this.isLoading = false;
     }
@@ -144,13 +192,8 @@ export class HomePage {
     await alert.present();
   }
 
-  // Add to your component class:
   clearScan() {
     this.scannedText = '';
     this.productInfo = null;
   }
-
 }
-
-
-

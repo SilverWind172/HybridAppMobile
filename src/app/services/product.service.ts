@@ -1,57 +1,64 @@
 import {Injectable} from '@angular/core';
-import {CapacitorSQLite, SQLiteConnection, SQLiteDBConnection} from '@capacitor-community/sqlite';
-import {Capacitor} from "@capacitor/core";
+import {
+  CapacitorSQLite,
+  SQLiteConnection,
+  SQLiteDBConnection,
+} from '@capacitor-community/sqlite';
+import {Capacitor} from '@capacitor/core';
+import {Product} from "../model/Product.model";
+import {ProductImage} from "../model/ProductImage.model";
+import {ProductOffer} from "../model/ProductOffer.model";
+import {HTTP} from "@awesome-cordova-plugins/http/ngx";
+import {defineCustomElements} from 'jeep-sqlite/loader';
+
+defineCustomElements(window);
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ProductService {
   private sqlite: SQLiteConnection;
   private db: SQLiteDBConnection | null = null;
   private readonly DB_NAME = 'products.db';
 
-  constructor() {
+  constructor(private httpNative: HTTP) {
     this.sqlite = new SQLiteConnection(CapacitorSQLite);
   }
 
-  /**
-   * Initialize the database (creates tables if they don't exist).
-   */
   async initDB(): Promise<void> {
     if (Capacitor.getPlatform() === 'web') {
       try {
-        // Chỉ define nếu chưa define trước đó
         if (!customElements.get('jeep-sqlite')) {
-          const jeep = await import('jeep-sqlite/dist/jeep-sqlite/jeep-sqlite.esm.js');
+          const jeep = await import(
+            'jeep-sqlite/dist/jeep-sqlite/jeep-sqlite.esm.js'
+            );
           customElements.define('jeep-sqlite', jeep.JeepSqlite);
         }
-      } catch (e) {
-        console.error('Failed to load jeep-sqlite for Web:', e);
+      } catch (err) {
+        console.error('Failed to load jeep-sqlite for Web:', err);
       }
     }
 
-
-    if (this.db) return; // Skip if already initialized
+    if (this.db) return;
 
     try {
-      // 1. Check SQLite availability
       const isAvailable = await this.sqlite.checkConnectionsConsistency();
       if (!isAvailable.result) {
-        throw new Error('SQLite is not available or connections are inconsistent.');
+        throw new Error(
+          'SQLite is not available or connections are inconsistent.'
+        );
       }
 
-      // 2. Create and open the database
       this.db = await this.sqlite.createConnection(
         this.DB_NAME,
-        false, // Not encrypted
+        false,
         'no-encryption',
-        1, // Version
-        false // Not read-only
+        1,
+        false
       );
 
       await this.db.open();
 
-      // 3. Create tables
       await this.db.execute(`
         CREATE TABLE IF NOT EXISTS products
         (
@@ -59,13 +66,25 @@ export class ProductService {
           TEXT
           PRIMARY
           KEY,
-          name
-          TEXT
+          title
+          TEXT,
+          description
+          TEXT,
+          brand
+          TEXT,
+          model
+          TEXT,
+          category
+          TEXT,
+          lowest_price
+          REAL,
+          highest_price
+          REAL
         );
       `);
 
       await this.db.execute(`
-        CREATE TABLE IF NOT EXISTS prices
+        CREATE TABLE IF NOT EXISTS product_images
         (
           id
           INTEGER
@@ -74,9 +93,50 @@ export class ProductService {
           AUTOINCREMENT,
           code
           TEXT,
-          store
+          image_url
           TEXT,
+          FOREIGN
+          KEY
+        (
+          code
+        ) REFERENCES products
+        (
+          code
+        )
+          );
+      `);
+
+      await this.db.execute(`
+        CREATE TABLE IF NOT EXISTS product_offers
+        (
+          id
+          INTEGER
+          PRIMARY
+          KEY
+          AUTOINCREMENT,
+          code
+          TEXT,
+          merchant
+          TEXT,
+          domain
+          TEXT,
+          offer_title
+          TEXT,
+          currency
+          TEXT,
+          list_price
+          REAL,
           price
+          REAL,
+          shipping
+          TEXT,
+          condition
+          TEXT,
+          availability
+          TEXT,
+          link
+          TEXT,
+          updated_time
           INTEGER,
           FOREIGN
           KEY
@@ -96,78 +156,182 @@ export class ProductService {
     }
   }
 
-  /**
-   * Adds a product and its prices to the database.
-   */
-  async addProduct(code: string, name: string, prices: { store: string, price: number }[]): Promise<void> {
+  async addFullProduct(
+    product: Product,
+    images: ProductImage[],
+    offers: ProductOffer[]
+  ): Promise<void> {
     if (!this.db) await this.initDB();
-
-    if (!this.db) {
-      throw new Error('Database connection failed to initialize');
-    }
+    if (!this.db) throw new Error('Database connection failed to initialize');
 
     try {
-      // Insert product
       await this.db.run(
-        'INSERT INTO products (code, name) VALUES (?, ?)',
-        [code, name]
+        `INSERT INTO products
+         (code, title, description, brand, model, category, lowest_price, highest_price)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          product.code,
+          product.title,
+          product.description,
+          product.brand,
+          product.model,
+          product.category,
+          product.lowest_price,
+          product.highest_price,
+        ]
       );
 
-      // Insert prices
-      for (const price of prices) {
+      for (const img of images) {
         await this.db.run(
-          'INSERT INTO prices (code, store, price) VALUES (?, ?, ?)',
-          [code, price.store, price.price]
+          `INSERT INTO product_images (code, image_url)
+           VALUES (?, ?)`,
+          [product.code, img.image_url]
         );
       }
+
+      for (const offer of offers) {
+        await this.db.run(
+          `INSERT INTO product_offers
+           (code, merchant, domain, offer_title, currency, list_price, price, shipping, condition, availability, link,
+            updated_time)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            product.code,
+            offer.merchant,
+            offer.domain,
+            offer.offer_title,
+            offer.currency,
+            offer.list_price,
+            offer.price,
+            offer.shipping,
+            offer.condition,
+            offer.availability,
+            offer.link,
+            offer.updated_time,
+          ]
+        );
+      }
+
+      console.log('Product and related data inserted!');
     } catch (error) {
-      console.error('Failed to add product:', error);
+      console.error('Failed to add full product:', error);
       throw error;
     }
   }
 
-  /**
-   * Fetches a product by barcode along with its prices.
-   */
-  async getProductByBarcode(code: string): Promise<{ name: string; priceList: { store: string; price: number }[] }> {
-    if (!this.db) await this.initDB();
+  getProduct(barcode: string): Promise<any> {
+    const url = 'https://api.upcitemdb.com/prod/trial/lookup';
+    const params = {upc: barcode};
 
-    if (!this.db) {
-      throw new Error('Database connection failed to initialize');
-    }
+    return this.httpNative.get(url, params, {})
+      .then(response => {
+        const data = JSON.parse(response.data);
+        console.log('Kết quả API:', data);
+        return data;
+      })
+      .catch(error => {
+        console.error('Lỗi gọi API:', error);
+        throw error;
+      });
+  }
+
+  async getProductByBarcode(
+    code: string
+  ): Promise<{
+    product: Product;
+    images: ProductImage[];
+    offers: ProductOffer[];
+  }> {
+    if (!this.db) await this.initDB();
+    if (!this.db) throw new Error('Database connection failed to initialize');
 
     try {
-      // Get product
-      const productResult = await this.db.query(
-        'SELECT * FROM products WHERE code = ?',
+      const productRes = await this.db.query(
+        `SELECT *
+         FROM products
+         WHERE code = ?`,
         [code]
       );
 
-      if (productResult.values?.length === 0) {
+      if (!productRes.values?.length) {
         throw new Error('Product not found');
       }
 
-      const product = productResult.values![0];
+      const product = productRes.values[0] as Product;
 
-      // Get prices (sorted by price ASC)
-      const priceResult = await this.db.query(
-        'SELECT store, price FROM prices WHERE code = ? ORDER BY price ASC',
+      const imageRes = await this.db.query(
+        `SELECT *
+         FROM product_images
+         WHERE code = ?`,
         [code]
       );
+      const images = imageRes.values as ProductImage[];
 
-      return {
-        name: product.name,
-        priceList: priceResult.values || []
-      };
-    } catch (error) {
-      console.error('Failed to fetch product:', error);
-      throw error;
+      const offerRes = await this.db.query(
+        `SELECT *
+         FROM product_offers
+         WHERE code = ?
+         ORDER BY price ASC`,
+        [code]
+      );
+      const offers = offerRes.values as ProductOffer[];
+
+      return {product, images, offers};
+    } catch (err) {
+      console.error('Error getProductByBarcode:', err);
+      throw err;
     }
   }
 
-  /**
-   * Closes the database connection (optional).
-   */
+  async getAllProducts(): Promise<
+    Array<{
+      product: Product;
+      images: ProductImage[];
+      offers: ProductOffer[];
+    }>
+  > {
+    if (!this.db) await this.initDB();
+    if (!this.db) throw new Error('Database connection failed to initialize');
+
+    try {
+      const productsRes = await this.db.query('SELECT * FROM products');
+      const productList = productsRes.values || [];
+
+      const all: Array<{
+        product: Product;
+        images: ProductImage[];
+        offers: ProductOffer[];
+      }> = [];
+
+      for (const product of productList) {
+        const imageRes = await this.db.query(
+          `SELECT *
+           FROM product_images
+           WHERE code = ?`,
+          [product.code]
+        );
+        const offerRes = await this.db.query(
+          `SELECT *
+           FROM product_offers
+           WHERE code = ?
+           ORDER BY price ASC`,
+          [product.code]
+        );
+
+        all.push({
+          product: product as Product,
+          images: imageRes.values as ProductImage[],
+          offers: offerRes.values as ProductOffer[],
+        });
+      }
+
+      return all;
+    } catch (err) {
+      console.error('Error in getAllProducts:', err);
+      throw err;
+    }
+  }
+
   async closeDB(): Promise<void> {
     if (this.db) {
       await this.db.close();
@@ -176,54 +340,4 @@ export class ProductService {
     }
   }
 
-  /**
-   * Retrieves all products with their associated prices from the database
-   * @returns Promise<Array<{code: string, name: string, priceList: Array<{store: string, price: number}>}>>
-   */
-  async getAllProducts(): Promise<
-    Array<{
-      code: string;
-      name: string;
-      priceList: Array<{ store: string; price: number }>;
-    }>
-  > {
-    if (!this.db) await this.initDB();
-
-    if (!this.db) {
-      throw new Error('Database connection failed to initialize');
-    }
-
-    try {
-      // Enable foreign key support (important for relational queries)
-      await this.db.execute('PRAGMA foreign_keys = ON;');
-
-      // 1. Get all products
-      const productsResult = await this.db.query('SELECT code, name FROM products');
-      const products = productsResult.values || [];
-
-      // 2. Get prices for each product and combine the data
-      const productsWithPrices = [];
-
-      for (const product of products) {
-        const pricesResult = await this.db.query(
-          `SELECT store, price
-           FROM prices
-           WHERE code = ?
-           ORDER BY price ASC`,  // Sort by price ascending
-          [product.code]
-        );
-
-        productsWithPrices.push({
-          code: product.code,
-          name: product.name,
-          priceList: pricesResult.values || []  // Default to empty array if no prices
-        });
-      }
-
-      return productsWithPrices;
-    } catch (error) {
-      console.error('Error in getAllProducts:', error);
-      throw error;
-    }
-  }
 }
