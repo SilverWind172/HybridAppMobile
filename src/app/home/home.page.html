@@ -29,14 +29,20 @@
         <!-- Product Info -->
         <div class="product-section" *ngIf="productInfo">
           <ion-text color="primary">
-            <h2>{{ productInfo.title }}</h2>
+            <h2>{{ productInfo.product.title }}</h2>
+          </ion-text>
+
+          <ion-text>
+            <p>{{ productInfo.product.description }}</p>
+            <p><strong>Brand:</strong> {{ productInfo.product.brand }}</p>
+            <p><strong>Category:</strong> {{ productInfo.product.category }}</p>
+            <p><strong>UPC:</strong> {{ productInfo.product.upc }}</p>
           </ion-text>
 
           <!-- Price Comparison -->
           <ion-list lines="none">
             <ion-item *ngFor="let offer of productInfo.offers | sortByPrice">
               <ion-avatar slot="start">
-                <!--suppress AngularNgOptimizedImage -->
                 <img
                   [src]="'assets/stores/' + offer.merchant + '.png'"
                   [alt]="offer.merchant + ' logo'"
