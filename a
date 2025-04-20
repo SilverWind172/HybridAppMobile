@@ -1,0 +1,63 @@
+[33mcommit 8a4a89233e601203c12f2f81ff465e870810ac06[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Sun Apr 20 16:39:08 2025 +0700
+
+    fix done
+
+[33mcommit 9ccff4e1921944a885d7df8376b9c65c989cc1fc[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Sun Apr 20 14:05:54 2025 +0700
+
+    Next commit
+
+[33mcommit 5a05f6bd063baef73561198219661984cb64b4c5[m
+Merge: a7d1c44 884d8ae
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Sun Apr 20 11:23:52 2025 +0700
+
+    Merge branch 'sang'
+
+[33mcommit 884d8ae1c60b53639c72a2b6e148d87f862e6e82[m[33m ([m[1;31morigin/sang[m[33m, [m[1;32msang[m[33m)[m
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Sun Apr 20 11:16:07 2025 +0700
+
+    Next commit
+
+[33mcommit 36dfe3d1a5a652cfc17e5771f92f1ca7f4715f7e[m
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Sun Apr 20 11:15:25 2025 +0700
+
+    Next commit
+
+[33mcommit a7d1c44c54d0fdec43ec983b76241d0933b3d2a1[m
+Merge: 872cbae 116deff
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Sat Apr 19 01:48:56 2025 +0700
+
+    Merge pull request #1 from SilverWind172/sang
+    
+    Merge src code project
+
+[33mcommit 116deffaeeca131fbedf584a2cd2888b7145eade[m
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Sat Apr 19 01:43:36 2025 +0700
+
+    Push src code project temporary
+
+[33mcommit 872cbaec50f76a71005312710c6cca6592508912[m
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Tue Apr 15 16:57:43 2025 +0700
+
+    modified build.gradle,AndroidManifest,setting.gradle,and more
+
+[33mcommit 421d0840d62d73e9a5d6ab04fc6e85922155b937[m
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Mon Apr 14 21:19:02 2025 +0700
+
+    Initial commit: add full source code
+
+[33mcommit a0dff24834f7168435995980d8e48ad6423776a3[m
+Author: Võ Tấn Sang <22130233@st.hcmuaf.edu.vn>
+Date:   Mon Apr 14 08:22:55 2025 +0700
+
+    Create README.md
